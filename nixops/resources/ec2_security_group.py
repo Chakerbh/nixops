@@ -98,7 +98,7 @@ class EC2SecurityGroupState(nixops.resources.ResourceState):
 
     def create(self, defn, check, allow_reboot, allow_recreate):
         def retry_notfound(f):
-            nixops.ec2_utils.retry(f, error_codes=['InvalidGroup.NotFound'])
+            nixops.ec2_utils.retry(f, error_codes=['InvalidGroup.NotFound'], logger=self.logger)
 
         # Name or region change means a completely new security group
         if self.security_group_name and (defn.security_group_name != self.security_group_name or defn.region != self.region):
@@ -191,7 +191,7 @@ class EC2SecurityGroupState(nixops.resources.ResourceState):
                     args = {}
                     args['owner_id']=rule[4]
                     if self.vpc_id:
-                        args['id']=nixops.ec2_utils.name_to_security_group(self._conn, rule[3], self.vpc_id)
+                        args['id']= nixops.ec2_utils.retry(lambda: nixops.ec2_utils.name_to_security_group(self._conn, rule[3], self.vpc_id), logger=self.logger)
                     else:
                         args['name']=rule[3]
                     src_group = boto.ec2.securitygroup.SecurityGroup(**args)

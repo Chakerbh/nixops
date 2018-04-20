@@ -17,6 +17,15 @@ from boto.pyami.config import Config
 
 import botocore
 
+
+class CustomEC2Exception(Exception):
+    pass
+
+class SGNotFound(CustomEC2Exception):
+    def __init__(self, message):
+        self.error_message = message
+        self.error_code = 'InvalidGroup.NotFound'
+
 def fetch_aws_secret_key(access_key_id):
     """
         Fetch the secret access key corresponding to the given access key ID from ~/.ec2-keys,
@@ -128,7 +137,7 @@ def retry(f, error_codes=[], logger=None):
 
         try:
             return f()
-        except EC2ResponseError as e:
+        except (EC2ResponseError, CustomEC2Exception) as e:
             handle_exception(e)
         except SQSError as e:
             handle_exception(e)
@@ -179,13 +188,12 @@ def name_to_security_group(conn, name, vpc_id):
     if not vpc_id or name.startswith('sg-'):
         return name
 
-    id = None
     for sg in conn.get_all_security_groups(filters={'group-name':name, 'vpc-id': vpc_id}):
         if sg.name == name:
             id = sg.id
             return id
 
-    raise Exception("could not resolve security group name '{0}' in VPC '{1}'".format(name, vpc_id))
+    raise SGNotFound("could not resolve security group name '{0}' in VPC '{1}'".format(name, vpc_id))
 
 def id_to_security_group_name(conn, sg_id, vpc_id):
     name = None
